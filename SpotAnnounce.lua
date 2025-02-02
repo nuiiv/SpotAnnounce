@@ -29,12 +29,15 @@ local function MonitorSpotifyTitle()
 
     while true do
         hwnd = user32:call("FindWindowA", 0, "Spotify")
+        if hwnd == 0 then
+            hwnd = user32:call("FindWindowA", 0, "Spotify Free")
+        end
         if hwnd ~= 0 then
             break
         end
         util.toast("Waiting for Spotify window... (Pause current song if you are playing one.)")
         util.yield(1000)
-    end
+    end    
 
     util.toast("Found Spotify Window - Monitoring...")
     local lastTitle = GetWindowTitle(hwnd)
