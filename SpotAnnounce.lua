@@ -13,11 +13,32 @@ menu.toggle(menu.my_root(), "Team Chat", {""}, "Announce In Team Chat?", functio
     teamchat = on
 end)
 
+local function utf16_to_utf8(ptr, length)
+    local utf8 = {}
+    for i = 0, length - 1 do
+        local wchar = memory.read_ushort(ptr + i * 2)
+        if wchar == 0 then break end
+
+        if wchar < 0x80 then
+            table.insert(utf8, string.char(wchar))
+        elseif wchar < 0x800 then
+            table.insert(utf8, string.char(0xC0 | (wchar >> 6)))
+            table.insert(utf8, string.char(0x80 | (wchar & 0x3F)))
+        else
+            table.insert(utf8, string.char(0xE0 | (wchar >> 12)))
+            table.insert(utf8, string.char(0x80 | ((wchar >> 6) & 0x3F)))
+            table.insert(utf8, string.char(0x80 | (wchar & 0x3F)))
+        end
+    end
+    return table.concat(utf8)
+end
+
 local function GetWindowTitle(hwnd)
-    local title = memory.alloc(256)
-    local length = user32:call("GetWindowTextA", hwnd, title, 256)
-    if length > 0 then
-        return memory.read_string(title, length)
+    local title = memory.alloc(512 * 2)
+    local length = user32:call("GetWindowTextW", hwnd, title, 512)
+
+    if length > 0 then  
+        return utf16_to_utf8(title, length)
     end
     return ""
 end
