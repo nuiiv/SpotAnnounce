@@ -77,7 +77,7 @@ local function MonitorSpotifyTitle()
         end
 
         if currentTitle ~= lastTitle then
-            if currentTitle == "Spotify" then goto jump_1 end
+            if currentTitle == "Spotify" or currentTitle == "Spotify Free" then goto jump_1 end
             lastTitle = currentTitle
 
             util.toast("Current Title: " .. currentTitle)
