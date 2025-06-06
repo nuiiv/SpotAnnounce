@@ -114,7 +114,7 @@ end)
 
 menu.action(menu.my_root(), "Resume Song", {"resumesong"}, "Resumes the currently playing song in Spotify", function()
     if hwnd ~= nil and hwnd ~= 0 then
-        if GetWindowTitle(hwnd) == "Spotify" or GetWindowTitle(hwnd) == "Spotify Free" then
+        if GetWindowTitle(hwnd) == "Spotify" or GetWindowTitle(hwnd) == "Spotify Free" or GetWindowTitle(hwnd) == "Spotify Premium" then
             ResumeSong(hwnd)
         end        
     else
@@ -154,6 +154,9 @@ local function MonitorSpotifyTitle()
         if hwnd == 0 then
             hwnd = user32:call("FindWindowA", 0, "Spotify Free")
         end
+        if hwnd == 0 then
+            hwnd = user32:call("FindWindowA", 0, "Spotify Premium")
+        end
         if hwnd ~= 0 then
             break
         end
@@ -178,7 +181,7 @@ local function MonitorSpotifyTitle()
         end
 
         if currentTitle ~= lastTitle then
-            if currentTitle == "Spotify" or currentTitle == "Spotify Free" then goto jump_1 end
+            if currentTitle == "Spotify" or currentTitle == "Spotify Free" or currentTitle == "Spotify Premium" then goto jump_1 end
             lastTitle = currentTitle
 
             util.toast("Current Title: " .. currentTitle)
