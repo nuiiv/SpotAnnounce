@@ -1,0 +1,113 @@
+local ffi = require"pluto:ffi"
+
+local user32 = ffi.open("user32.dll")
+
+user32:cdef[[
+    void keybd_event(unsigned char bVk, unsigned char bScan, unsigned int dwFlags, void *dwExtraInfo);
+    int GetWindowTextA(void *hWnd, char *lpString, int nMaxCount);
+    void *FindWindowA(const char *lpClassName, const char *lpWindowName);
+]]
+
+-- constants
+local VK_MEDIA_PLAY_PAUSE  = 0xB3
+local VK_MEDIA_STOP        = 0xB2
+local VK_MEDIA_NEXT_TRACK  = 0xB0
+local VK_MEDIA_PREV_TRACK  = 0xB1
+local VK_MEDIA_VOLUME_MUTE = 0xAD
+local VK_MEDIA_VOLUME_DOWN = 0xAE
+local VK_MEDIA_VOLUME_UP   = 0xAF
+
+local KEYEVENTF_KEYUP = 0x0002
+
+local function simulate_key(vk)
+    user32.keybd_event(vk, 0, 0, ffi.nullptr)
+    util.yield(30)
+    user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, ffi.nullptr)
+end
+
+local function SkipSong()       simulate_key(VK_MEDIA_NEXT_TRACK) end
+local function PrevSong()       simulate_key(VK_MEDIA_PREV_TRACK) end
+local function PauseSong()      simulate_key(VK_MEDIA_STOP) end
+local function ResumeSong()     simulate_key(VK_MEDIA_PLAY_PAUSE) end
+local function MuteVolume()     simulate_key(VK_MEDIA_VOLUME_MUTE) end
+local function DecreaseVolume() simulate_key(VK_MEDIA_VOLUME_DOWN) end
+local function IncreaseVolume() simulate_key(VK_MEDIA_VOLUME_UP) end
+
+local function GetWindowTitle(hwnd)
+    local buf = string.rep("\0", 512)
+    local len = user32.GetWindowTextA(hwnd, buf, 512)
+    if len > 0 then
+        return buf:sub(1, len)
+    end
+    return ""
+end
+
+local teamchat = false
+menu.toggle(menu.my_root(), "Team Chat", {""}, "Announce In Team Chat?", function(on)
+    teamchat = on
+end)
+
+menu.action(menu.my_root(), "Skip Song", {"skipsong"}, "Skip the currently playing song in Spotify", function()
+    SkipSong()
+end)
+
+menu.action(menu.my_root(), "Previous/Rewind Song", {"prevsong"}, "Go to the previous song in Spotify", function()
+    PrevSong()
+end)
+
+menu.action(menu.my_root(), "Pause Song", {"pausesong"}, "Pause the currently playing song in Spotify", function()
+    PauseSong()
+end)
+
+menu.action(menu.my_root(), "Resume Song", {"resumesong"}, "Resumes the currently playing song in Spotify", function()
+    ResumeSong()
+end)
+
+menu.action(menu.my_root(), "Mute Volume", {"mutevolume"}, "Mute the volume (NOTE: This will mute the volume of your whole system)", function()
+    MuteVolume()
+end)
+
+menu.action(menu.my_root(), "Decrease Volume", {"decreasevolume"}, "Decrease the volume (NOTE: This will change the volume of your whole system)", function()
+    DecreaseVolume()
+end)
+
+menu.action(menu.my_root(), "Increase Volume", {"increasevolume"}, "Increase the volume (NOTE: This will change the volume of your whole system)", function()
+    IncreaseVolume()
+end)
+
+local function MonitorSpotify()
+    local hwnd
+    ::restart::
+    while true do
+        hwnd = user32.FindWindowA(nil, "Spotify")
+        if hwnd == ffi.nullptr then
+            hwnd = user32.FindWindowA(nil, "Spotify Free")
+        end
+        if hwnd == ffi.nullptr then
+            hwnd = user32.FindWindowA(nil, "Spotify Premium")
+        end
+        if hwnd ~= ffi.nullptr then break end
+        util.toast("Waiting for Spotify window…")
+        util.yield(1000)
+    end
+
+    util.toast("Found Spotify Window")
+    local lastTitle = GetWindowTitle(hwnd)
+
+    while true do
+        local title = GetWindowTitle(hwnd)
+        if title == "" then
+            util.toast("Spotify closed, restarting…")
+            goto restart
+        end
+
+        if title ~= lastTitle and title ~= "Spotify" and title ~= "Spotify Free" and title ~= "Spotify Premium" then
+            util.toast("Currently listening to: " .. title)
+            chat.send_message("Currently listening to: " .. title, teamchat, true, true)
+            lastTitle = title
+        end
+        util.yield(1000)
+    end
+end
+
+MonitorSpotify()
